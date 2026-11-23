@@ -6,37 +6,130 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 21
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Prepare web assets & Capacitor
+      - name: Install Capacitor, Plugins & Offline Fonts
         run: |
-          mkdir -p www
+          if [ ! -f package.json ]; then
+            npm init -y
+          fi
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/local-notifications @capacitor/filesystem @capacitor/share @capacitor/status-bar
+          npm install @fontsource-variable/inter @fontsource-variable/plus-jakarta-sans @fontsource-variable/jetbrains-mono @fontsource-variable/geist || true
+
+      - name: Bundle Offline Fonts into www/fonts
+        run: |
+          mkdir -p www/fonts
           if [ -f index.html ] && [ ! -f www/index.html ]; then cp index.html www/index.html; fi
-          if [ ! -f package.json ]; then npm init -y; fi
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/status-bar
-          if [ ! -d android ]; then npx cap add android; fi
+          python3 - << 'PYEOF'
+          import glob, shutil, os
+          mapping = {
+            "inter.woff2": "node_modules/@fontsource-variable/inter/files/*latin-wght-normal.woff2",
+            "geist.woff2": "node_modules/@fontsource-variable/geist/files/*latin-wght-normal.woff2",
+            "jakarta.woff2": "node_modules/@fontsource-variable/plus-jakarta-sans/files/*latin-wght-normal.woff2",
+            "mono.woff2": "node_modules/@fontsource-variable/jetbrains-mono/files/*latin-wght-normal.woff2"
+          }
+          for dest, pattern in mapping.items():
+            matches = glob.glob(pattern)
+            if matches:
+              shutil.copy(matches[0], os.path.join("www/fonts", dest))
+              print("Bundled", dest)
+          PYEOF
+
+      - name: Ensure Capacitor config exists
+        run: |
+          if [ ! -f capacitor.config.json ]; then
+            cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.dayflow.app",
+            "appName": "Dopahar",
+            "webDir": "www",
+            "bundledWebRuntime": false
+          }
+          EOF
+          fi
+
+      - name: Add Android platform & sync plugins
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
-      - name: Inject BiometricPlugin, DetoxPlugin, and MainActivity
+      - name: Inject Native Detox (Screen Pinning) & Biometric (Fingerprint) Plugins
         run: |
           PKG_DIR="android/app/src/main/java/com/dayflow/app"
           mkdir -p "$PKG_DIR"
+          cat << 'EOF' > "$PKG_DIR/DetoxPlugin.java"
+          package com.dayflow.app;
+
+          import android.app.Activity;
+          import android.app.ActivityManager;
+          import android.content.Context;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "Detox")
+          public class DetoxPlugin extends Plugin {
+              @PluginMethod
+              public void startPinning(PluginCall call) {
+                  Activity activity = getActivity();
+                  if (activity == null) { call.reject("No activity"); return; }
+                  activity.runOnUiThread(() -> {
+                      try {
+                          activity.startLockTask();
+                          JSObject ret = new JSObject();
+                          ret.put("pinned", true);
+                          call.resolve(ret);
+                      } catch (Exception e) {
+                          call.reject("Pinning failed: " + e.getMessage());
+                      }
+                  });
+              }
+
+              @PluginMethod
+              public void stopPinning(PluginCall call) {
+                  Activity activity = getActivity();
+                  if (activity == null) { call.reject("No activity"); return; }
+                  activity.runOnUiThread(() -> {
+                      try { activity.stopLockTask(); } catch (Exception ignored) {}
+                      JSObject ret = new JSObject();
+                      ret.put("pinned", false);
+                      call.resolve(ret);
+                  });
+              }
+
+              @PluginMethod
+              public void isPinned(PluginCall call) {
+                  Activity activity = getActivity();
+                  boolean pinned = false;
+                  if (activity != null) {
+                      ActivityManager am = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+                      if (am != null) pinned = am.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE;
+                  }
+                  JSObject ret = new JSObject();
+                  ret.put("pinned", pinned);
+                  call.resolve(ret);
+              }
+          }
+          EOF
 
           cat << 'EOF' > "$PKG_DIR/BiometricPlugin.java"
           package com.dayflow.app;
@@ -51,92 +144,57 @@ jobs:
           import com.getcapacitor.PluginCall;
           import com.getcapacitor.PluginMethod;
           import com.getcapacitor.annotation.CapacitorPlugin;
+          import java.util.concurrent.Executor;
 
           @CapacitorPlugin(name = "Biometric")
           public class BiometricPlugin extends Plugin {
               @PluginMethod
+              public void isAvailable(PluginCall call) {
+                  FragmentActivity activity = getActivity();
+                  if (activity == null) { call.reject("No activity"); return; }
+                  BiometricManager bm = BiometricManager.from(activity);
+                  int can = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK);
+                  JSObject ret = new JSObject();
+                  ret.put("available", can == BiometricManager.BIOMETRIC_SUCCESS);
+                  call.resolve(ret);
+              }
+
+              @PluginMethod
               public void authenticate(PluginCall call) {
                   FragmentActivity activity = getActivity();
-                  if (activity == null) {
-                      call.reject("Activity unavailable");
-                      return;
-                  }
-
-                  BiometricManager bm = BiometricManager.from(activity);
-                  int canAuth = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
-                  if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
-                      call.reject("Biometric unavailable");
-                      return;
-                  }
-
+                  if (activity == null) { call.reject("No activity"); return; }
                   String title = call.getString("title", "Unlock Dopahar");
                   String subtitle = call.getString("subtitle", "Verify your identity");
-
                   activity.runOnUiThread(() -> {
-                      BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                      Executor executor = ContextCompat.getMainExecutor(activity);
+                      BiometricPrompt prompt = new BiometricPrompt(activity, executor, new BiometricPrompt.AuthenticationCallback() {
+                          @Override
+                          public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                              super.onAuthenticationSucceeded(result);
+                              JSObject ret = new JSObject();
+                              ret.put("authenticated", true);
+                              call.resolve(ret);
+                          }
+
+                          @Override
+                          public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                              super.onAuthenticationError(errorCode, errString);
+                              call.reject(errString.toString());
+                          }
+
+                          @Override
+                          public void onAuthenticationFailed() {
+                              super.onAuthenticationFailed();
+                          }
+                      });
+                      BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
                           .setTitle(title)
                           .setSubtitle(subtitle)
+                          .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK)
                           .setNegativeButtonText("Use PIN")
                           .build();
-
-                      BiometricPrompt prompt = new BiometricPrompt(
-                          activity,
-                          ContextCompat.getMainExecutor(activity),
-                          new BiometricPrompt.AuthenticationCallback() {
-                              @Override
-                              public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                                  JSObject ret = new JSObject();
-                                  ret.put("authenticated", true);
-                                  call.resolve(ret);
-                              }
-
-                              @Override
-                              public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                                  call.reject(errString.toString());
-                              }
-                          }
-                      );
-                      prompt.authenticate(promptInfo);
+                      prompt.authenticate(info);
                   });
-              }
-          }
-          EOF
-
-          cat << 'EOF' > "$PKG_DIR/DetoxPlugin.java"
-          package com.dayflow.app;
-
-          import android.app.Activity;
-          import com.getcapacitor.Plugin;
-          import com.getcapacitor.PluginCall;
-          import com.getcapacitor.PluginMethod;
-          import com.getcapacitor.annotation.CapacitorPlugin;
-
-          @CapacitorPlugin(name = "Detox")
-          public class DetoxPlugin extends Plugin {
-              @PluginMethod
-              public void startPinning(PluginCall call) {
-                  Activity activity = getActivity();
-                  if (activity != null) {
-                      activity.runOnUiThread(() -> {
-                          try { activity.startLockTask(); call.resolve(); }
-                          catch (Exception e) { call.reject(e.getMessage()); }
-                      });
-                  } else {
-                      call.reject("Activity unavailable");
-                  }
-              }
-
-              @PluginMethod
-              public void stopPinning(PluginCall call) {
-                  Activity activity = getActivity();
-                  if (activity != null) {
-                      activity.runOnUiThread(() -> {
-                          try { activity.stopLockTask(); call.resolve(); }
-                          catch (Exception e) { call.reject(e.getMessage()); }
-                      });
-                  } else {
-                      call.reject("Activity unavailable");
-                  }
               }
           }
           EOF
@@ -150,35 +208,119 @@ jobs:
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
-                  registerPlugin(BiometricPlugin.class);
                   registerPlugin(DetoxPlugin.class);
+                  registerPlugin(BiometricPlugin.class);
                   super.onCreate(savedInstanceState);
               }
           }
           EOF
 
-      - name: Update Android Display Name, Version Code & Dependencies
+      - name: Update App Name, Adaptive Logo, Permissions, Dependencies & Version v1.4
         run: |
-          STRINGS="android/app/src/main/res/values/strings.xml"
-          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">Dopahar<\/string>/' "$STRINGS"
-          sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">Dopahar<\/string>/' "$STRINGS"
+          python3 - << 'PYEOF'
+          import os, re, glob, textwrap
 
-          GRADLE="android/app/build.gradle"
-          sed -i 's/versionCode [0-9]\+/versionCode 5/' "$GRADLE"
-          sed -i 's/versionName ".*"/versionName "1.4.0"/' "$GRADLE"
-          if ! grep -q "androidx.biometric:biometric" "$GRADLE"; then
-            sed -i '/dependencies {/a \    implementation "androidx.biometric:biometric:1.1.0"' "$GRADLE"
-          fi
-          if ! grep -q "kotlin-bom" "$GRADLE"; then
-            sed -i '/dependencies {/a \    implementation platform("org.jetbrains.kotlin:kotlin-bom:1.8.22")' "$GRADLE"
-          fi
+          # 1. Android display name -> Dopahar (keeps com.dayflow.app appId for in-place upgrade)
+          st_path = "android/app/src/main/res/values/strings.xml"
+          if os.path.exists(st_path):
+              st = open(st_path).read()
+              st = re.sub(r'(<string name="app_name">).*?(</string>)', r'\1Dopahar\2', st)
+              st = re.sub(r'(<string name="title_activity_main">).*?(</string>)', r'\1Dopahar\2', st)
+              open(st_path, "w").write(st)
 
-      - name: Build APK (Signed Release if Keystore Secrets Exist, Else Debug)
+          # 2. Clean geometric Dopahar Adaptive Launcher Icon (AMOLED black + crisp white midday sun)
+          res_dir = "android/app/src/main/res"
+          for old_fg in glob.glob(os.path.join(res_dir, "drawable*", "ic_launcher_foreground.*")):
+              os.remove(old_fg)
+          os.makedirs(os.path.join(res_dir, "drawable"), exist_ok=True)
+          os.makedirs(os.path.join(res_dir, "mipmap-anydpi-v26"), exist_ok=True)
+
+          bg_xml = textwrap.dedent('''\
+              <?xml version="1.0" encoding="utf-8"?>
+              <vector xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:width="108dp"
+                  android:height="108dp"
+                  android:viewportWidth="108"
+                  android:viewportHeight="108">
+                  <path android:fillColor="#000000" android:pathData="M0,0h108v108h-108z"/>
+              </vector>
+          ''')
+          fg_xml = textwrap.dedent('''\
+              <?xml version="1.0" encoding="utf-8"?>
+              <vector xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:width="108dp"
+                  android:height="108dp"
+                  android:viewportWidth="108"
+                  android:viewportHeight="108">
+                  <path
+                      android:pathData="M30,66 L78,66"
+                      android:strokeColor="#FFFFFF"
+                      android:strokeWidth="4.2"
+                      android:strokeLineCap="round"/>
+                  <path
+                      android:pathData="M39,66 A15,15 0 0,1 69,66"
+                      android:strokeColor="#FFFFFF"
+                      android:strokeWidth="4.2"
+                      android:strokeLineCap="round"
+                      android:fillColor="#00000000"/>
+                  <path
+                      android:pathData="M54,32 L54,42"
+                      android:strokeColor="#FFFFFF"
+                      android:strokeWidth="4.2"
+                      android:strokeLineCap="round"/>
+                  <path
+                      android:pathData="M36,41 L42.5,47.5"
+                      android:strokeColor="#FFFFFF"
+                      android:strokeWidth="4.2"
+                      android:strokeLineCap="round"/>
+                  <path
+                      android:pathData="M72,41 L65.5,47.5"
+                      android:strokeColor="#FFFFFF"
+                      android:strokeWidth="4.2"
+                      android:strokeLineCap="round"/>
+              </vector>
+          ''')
+          adaptive_xml = textwrap.dedent('''\
+              <?xml version="1.0" encoding="utf-8"?>
+              <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                  <background android:drawable="@drawable/ic_launcher_background"/>
+                  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+              </adaptive-icon>
+          ''')
+          open(os.path.join(res_dir, "drawable", "ic_launcher_background.xml"), "w").write(bg_xml)
+          open(os.path.join(res_dir, "drawable", "ic_launcher_foreground.xml"), "w").write(fg_xml)
+          open(os.path.join(res_dir, "mipmap-anydpi-v26", "ic_launcher.xml"), "w").write(adaptive_xml)
+          open(os.path.join(res_dir, "mipmap-anydpi-v26", "ic_launcher_round.xml"), "w").write(adaptive_xml)
+
+          # 3. Manifest permissions
+          p = "android/app/src/main/AndroidManifest.xml"
+          s = open(p).read()
+          perms = '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_BIOMETRIC" />\n'
+          if "USE_BIOMETRIC" not in s:
+              if "POST_NOTIFICATIONS" not in s:
+                  s = s.replace("<application", perms + "    <application", 1)
+              else:
+                  s = s.replace("<application", '    <uses-permission android:name="android.permission.USE_BIOMETRIC" />\n    <application', 1)
+              open(p, "w").write(s)
+
+          # 4. Version bump (4 / v1.4) + Biometric & Kotlin BOM dependencies
+          g = "android/app/build.gradle"
+          gs = open(g).read()
+          gs = re.sub(r'versionCode\s+\d+', 'versionCode 4', gs)
+          gs = re.sub(r'versionName\s+"[^"]*"', 'versionName "1.4"', gs)
+          if "androidx.biometric:biometric" not in gs:
+              gs = gs.replace("dependencies {", "dependencies {\n    implementation 'androidx.biometric:biometric:1.1.0'", 1)
+          if "kotlin-bom" not in gs:
+              gs = gs.replace("dependencies {", "dependencies {\n    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')", 1)
+          open(g, "w").write(gs)
+          PYEOF
+
+      - name: Build APK (Signed Release if Keystore Secret exists, else Debug)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_PASS: ${{ secrets.KEY_PASS }}
         run: |
           cd android
           chmod +x gradlew
@@ -186,17 +328,17 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 --decode > app/release.keystore
             ./gradlew assembleRelease \
               -Pandroid.injected.signing.store.file="$(pwd)/app/release.keystore" \
-              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.store.password="$KEYSTORE_PASS" \
               -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-              -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-            cp app/build/outputs/apk/release/app-release.apk ../Dopahar-v1.4.0.apk
+              -Pandroid.injected.signing.key.password="$KEY_PASS"
+            cp app/build/outputs/apk/release/app-release.apk ../Dopahar-v1.4.apk
           else
             ./gradlew assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk ../Dopahar-v1.4.0-debug.apk
+            cp app/build/outputs/apk/debug/app-debug.apk ../Dopahar-v1.4.apk
           fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Dopahar-v1.4.0-APK
-          path: Dopahar-v1.4.0*.apk
+          name: Dopahar-v1.4-APK
+          path: Dopahar-v1.4.apk
