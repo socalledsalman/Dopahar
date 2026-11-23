@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="amoled">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" id="meta-theme-color" />
+  <title>Dopahar</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0d0d0d;
+      --surface-2: #171717;
+      --border: #262626;
+      --text: #fafafa;
+      --muted: #8a8a8a;
+      --accent: #ffffff;
+      --accent-text: #000000;
+      --warn-bg: #1f1a10;
+      --warn-border: #665222;
+      --warn-text: #f3d27a;
+      --danger-bg: #221212;
+      --danger-border: #7a2e2e;
+      --danger-text: #f59b9b;
+      --radius: 12px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    [data-theme="dark"] {
+      --bg: #121212;
+      --surface: #1c1c1c;
+      --surface-2: #262626;
+      --border: #333333;
+      --text: #f5f5f5;
+      --muted: #9c9c9c;
+      --accent: #ffffff;
+      --accent-text: #121212;
+    }
+
+    [data-theme="light"] {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --surface-2: #f0f0f0;
+      --border: #dcdcdc;
+      --text: #111111;
+      --muted: #666666;
+      --accent: #111111;
+      --accent-text: #ffffff;
+      --warn-bg: #fff8e6;
+      --warn-border: #d9a734;
+      --warn-text: #7a5800;
+      --danger-bg: #ffefef;
+      --danger-border: #d9534f;
+      --danger-text: #8c1d18;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-top: var(--safe-top);
+      padding-bottom: calc(74px + var(--safe-bottom));
+      line-height: 1.45;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .brand-title { font-size: 18px; font-weight: 700; letter-spacing: 0.4px; }
+    .brand-date { font-size: 12px; color: var(--muted); display: block; font-weight: 400; }
+
+    .icon-btn {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      height: 36px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    main { max-width: 640px; margin: 0 auto; padding: 16px; }
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .row > * { flex: 1; }
+    input, select, button {
+      font-family: inherit;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+    input, select {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      width: 100%;
+      outline: none;
+    }
+    .btn {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+    .alert {
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      border: 1px solid var(--warn-border);
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      display: none;
+    }
+    .alert.show { display: block; }
+    .alert.danger {
+      border-color: var(--danger-border);
+      background: var(--danger-bg);
+      color: var(--danger-text);
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item:last-child { border-bottom: none; padding-bottom: 0; }
+    .item-main { flex: 1; min-width: 0; }
+    .item-title { font-size: 15px; font-weight: 500; word-break: break-word; }
+    .item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .item.done .item-title { text-decoration: line-through; color: var(--muted); }
+    .item.overlap { border-left: 3px solid var(--warn-border); padding-left: 8px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .badge.milestone {
+      background: var(--accent);
+      color: var(--accent-text);
+      border-color: var(--accent);
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .detox-wrap { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
+    .ring-box { position: relative; width: 210px; height: 210px; margin-bottom: 16px; }
+    .ring-box svg { width: 210px; height: 210px; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--surface-2); stroke-width: 8; }
+    .ring-fg {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.3s linear;
+    }
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-time { font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ring-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .slider-wrap { width: 100%; max-width: 300px; margin-bottom: 14px; }
+    input[type="range"] { padding: 0; accent-color: var(--accent); }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+    .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .slider:before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .switch input:checked + .slider { background: var(--accent); border-color: var(--accent); }
+    .switch input:checked + .slider:before { transform: translateX(20px); background: var(--accent-text); }
+
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding-bottom: var(--safe-bottom);
+    }
+    nav button {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 12px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    nav button.active { color: var(--text); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      padding: 18px;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    #lock-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--bg);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #lock-screen.active { display: flex; }
+    .pin-dots { display: flex; gap: 14px; margin: 18px 0 24px; }
+    .pin-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1.5px solid var(--muted);
+    }
+    .pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 68px);
+      gap: 14px;
+    }
+    .key {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .key svg { width: 24px; height: 24px; flex-shrink: 0; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- PIN & Biometric Lock Screen -->
+  <div id="lock-screen">
+    <div style="font-size:18px;font-weight:700;letter-spacing:0.5px;">Dopahar</div>
+    <div id="lock-msg" style="font-size:13px;color:var(--muted);margin-top:4px;">Enter PIN or use fingerprint</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="keypad">
+      <button class="key" onclick="pinPress('1')">1</button>
+      <button class="key" onclick="pinPress('2')">2</button>
+      <button class="key" onclick="pinPress('3')">3</button>
+      <button class="key" onclick="pinPress('4')">4</button>
+      <button class="key" onclick="pinPress('5')">5</button>
+      <button class="key" onclick="pinPress('6')">6</button>
+      <button class="key" onclick="pinPress('7')">7</button>
+      <button class="key" onclick="pinPress('8')">8</button>
+      <button class="key" onclick="pinPress('9')">9</button>
+      <button class="key" onclick="triggerBiometric()" aria-label="Fingerprint unlock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+          <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+          <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+          <path d="M2 12a10 10 0 0 1 18-6"/>
+          <path d="M2 16h.01"/>
+          <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
+          <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
+          <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+          <path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+        </svg>
+      </button>
+      <button class="key" onclick="pinPress('0')">0</button>
+      <button class="key" onclick="pinBackspace()" aria-label="Backspace">⌫</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <circle cx="16" cy="16" r="6"/>
+        <line x1="16" y1="3" x2="16" y2="7"/>
+        <line x1="16" y1="25" x2="16" y2="29"/>
+        <line x1="3" y1="16" x2="7" y2="16"/>
+        <line x1="25" y1="16" x2="29" y2="16"/>
+      </svg>
+      <div>
+        <div class="brand-title">Dopahar</div>
+        <span class="brand-date" id="today-label"></span>
+      </div>
+    </div>
+    <button class="icon-btn" onclick="openSupportModal()">About</button>
+  </header>
+
+  <main>
+    <!-- TAB 1: TODAY / TIME BLOCKS -->
+    <section id="tab-today" class="tab-view active">
+      <div class="card">
+        <div class="card-title"><span>New Time Block</span></div>
+        <div class="alert" id="overlap-alert"></div>
+        <div class="row">
+          <input type="text" id="task-title" placeholder="Task or focus block..." />
+        </div>
+        <div class="row">
+          <input type="time" id="task-start" value="09:00" />
+          <input type="time" id="task-end" value="10:00" />
+          <button class="btn" style="flex:0.6" onclick="addTask()">Add</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Schedule</span>
+          <span id="task-count">0 blocks</span>
+        </div>
+        <div id="task-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: HABITS -->
+    <section id="tab-habits" class="tab-view">
+      <div class="card">
+        <div class="card-title"><span>New Habit</span></div>
+        <div class="row">
+          <input type="text" id="habit-name" placeholder="e.g., Read 30 mins" />
+          <button class="btn" style="flex:0.4" onclick="addHabit()">Add</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Daily Habits</span>
+          <span style="font-size:11px;">Milestones: 3 · 7 · 14 · 30 · 60 · 100d</span>
+        </div>
+        <div id="habit-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: BUDGET -->
+    <section id="tab-budget" class="tab-view">
+      <div class="card">
+        <div class="card-title">
+          <span>Monthly Budget</span>
+          <span id="budget-summary">₹0 / ₹10000</span>
+        </div>
+        <div class="alert" id="budget-alert"></div>
+        <div class="bar-track"><div class="bar-fill" id="budget-bar"></div></div>
+        <div class="row" style="margin-top:10px;">
+          <input type="number" id="budget-limit-input" placeholder="Monthly limit (₹)" />
+          <input type="number" id="budget-warn-pct" placeholder="Alert % (e.g. 80)" min="10" max="100" />
+          <button class="btn-outline" style="flex:0.5" onclick="saveBudgetConfig()">Set</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Log Expense</span></div>
+        <div class="row">
+          <input type="text" id="exp-note" placeholder="Item / note" />
+          <input type="number" id="exp-amount" placeholder="₹ Amount" style="flex:0.55" />
+        </div>
+        <div class="row">
+          <select id="exp-method">
+            <option value="UPI">UPI</option>
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="Bank">Bank</option>
+          </select>
+          <button class="btn" style="flex:0.5" onclick="addExpense()">Add</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Recent Entries</span>
+          <span id="method-totals" style="font-size:11px;"></span>
+        </div>
+        <div id="expense-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: DETOX -->
+    <section id="tab-detox" class="tab-view">
+      <div class="card">
+        <div class="card-title"><span>Focus Detox</span></div>
+        <div class="detox-wrap">
+          <div class="ring-box">
+            <svg viewBox="0 0 210 210">
+              <circle class="ring-bg" cx="105" cy="105" r="92"></circle>
+              <circle class="ring-fg" id="detox-ring" cx="105" cy="105" r="92"
+                      stroke-dasharray="578.05" stroke-dashoffset="0"></circle>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-time" id="detox-display">25:00</div>
+              <div class="ring-label" id="detox-status">Ready</div>
+            </div>
+          </div>
+
+          <div class="slider-wrap">
+            <input type="range" id="detox-slider" min="5" max="180" step="5" value="25" oninput="onDetoxSlide(this.value)" />
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;">
+              <span>5m</span><span>60m</span><span>120m</span><span>180m</span>
+            </div>
+          </div>
+
+          <div class="row" style="width:100%;max-width:300px;">
+            <button class="btn" id="detox-toggle-btn" onclick="toggleDetox()">Start Focus</button>
+            <button class="btn-outline" style="flex:0.45" onclick="resetDetox()">Reset</button>
+          </div>
+        </div>
+
+        <div class="toggle-row" style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">
+          <div>
+            <div style="font-size:14px;font-weight:500;">Screen Pinning</div>
+            <div style="font-size:12px;color:var(--muted);">Lock Dopahar to screen while detox timer runs</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="screen-pinning-toggle" onchange="toggleScreenPinning(this.checked)" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: SETTINGS -->
+    <section id="tab-settings" class="tab-view">
+      <div class="card">
+        <div class="card-title"><span>Appearance</span></div>
+        <div class="row">
+          <button class="btn-outline" onclick="setTheme('amoled')">AMOLED</button>
+          <button class="btn-outline" onclick="setTheme('dark')">Dark</button>
+          <button class="btn-outline" onclick="setTheme('light')">Light</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Security</span></div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-size:14px;font-weight:500;">App Lock (PIN + Fingerprint)</div>
+            <div style="font-size:12px;color:var(--muted);">Require unlock when opening Dopahar</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="lock-enabled-toggle" onchange="toggleLockEnabled(this.checked)" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <input type="password" id="new-pin-input" maxlength="4" inputmode="numeric" placeholder="4-digit PIN (default 0000)" />
+          <button class="btn-outline" style="flex:0.5" onclick="savePin()">Save PIN</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Local JSON Backup</span></div>
+        <div class="row">
+          <button class="btn-outline" onclick="exportBackup()">Export JSON</button>
+          <button class="btn-outline" onclick="document.getElementById('import-file').click()">Restore JSON</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(event)" />
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- About / Update Modal (UPI & Ko-fi will be added after testing) -->
+  <div class="modal-backdrop" id="support-modal" onclick="if(event.target===this) closeSupportModal()">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <div style="font-size:17px;font-weight:700;">Dopahar</div>
+          <div style="font-size:12px;color:var(--muted);">v1.4.0 · Offline &amp; Ad-Free</div>
+        </div>
+        <button class="btn-outline btn-sm" onclick="closeSupportModal()">Close</button>
+      </div>
+
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+        Minimal local-first planner for time blocks, habits, budgets, and focus detox. All data stays on your device.
+      </p>
+
+      <!-- Support links (UPI & Ko-fi) can be added here after testing -->
+
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <button class="btn-outline" style="width:100%;" onclick="checkForUpdates()">Check for Updates</button>
+        <div id="ota-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+
+  <nav>
+    <button class="active" onclick="switchTab('today', this)">Today</button>
+    <button onclick="switchTab('habits', this)">Habits</button>
+    <button onclick="switchTab('budget', this)">Budget</button>
+    <button onclick="switchTab('detox', this)">Detox</button>
+    <button onclick="switchTab('settings', this)">Settings</button>
+  </nav>
+
+  <script>
+    const APP_VERSION = "1.4.0";
+    const GITHUB_REPO = "YOUR_USERNAME/dopahar";
+    const STORAGE_KEY = "dayflow_data_v1";
+
+    const Cap = window.Capacitor;
+    const Biometric = Cap && Cap.registerPlugin ? Cap.registerPlugin('Biometric') : null;
+    const Detox = Cap && Cap.registerPlugin ? Cap.registerPlugin('Detox') : null;
+    const StatusBar = Cap && Cap.Plugins ? Cap.Plugins.StatusBar : null;
+
+    const MILESTONES = [3, 7, 14, 30, 60, 100];
+
+    const defaultState = {
+      theme: "amoled",
+      lockEnabled: false,
+      pin: "0000",
+      screenPinning: false,
+      tasks: [],
+      habits: [],
+      budget: { limit: 10000, warnPct: 80, expenses: [] }
+    };
+
+    let state = loadState();
+    let pinBuffer = "";
+    let detoxSeconds = 25 * 60;
+    let detoxTotal = 25 * 60;
+    let detoxInterval = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        return {
+          ...structuredClone(defaultState),
+          ...parsed,
+          budget: { ...defaultState.budget, ...(parsed.budget || {}) }
+        };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function setTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute("data-theme", theme);
+      const colors = { amoled: "#000000", dark: "#121212", light: "#fafafa" };
+      document.getElementById("meta-theme-color").setAttribute("content", colors[theme] || "#000000");
+      if (StatusBar) {
+        try {
+          StatusBar.setBackgroundColor({ color: colors[theme] });
+          StatusBar.setStyle({ style: theme === "light" ? "LIGHT" : "DARK" });
+        } catch {}
+      }
+      saveState();
+    }
+
+    function switchTab(id, btn) {
+      document.querySelectorAll(".tab-view").forEach(el => el.classList.remove("active"));
+      document.getElementById("tab-" + id).classList.add("active");
+      document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    }
+
+    function toMinutes(hhmm) {
+      const [h, m] = (hhmm || "00:00").split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function findOverlaps(tasks) {
+      const overlappingIds = new Set();
+      for (let i = 0; i < tasks.length; i++) {
+        for (let j = i + 1; j < tasks.length; j++) {
+          const aS = toMinutes(tasks[i].start), aE = toMinutes(tasks[i].end);
+          const bS = toMinutes(tasks[j].start), bE = toMinutes(tasks[j].end);
+          if (aS < bE && bS < aE) {
+            overlappingIds.add(tasks[i].id);
+            overlappingIds.add(tasks[j].id);
+          }
+        }
+      }
+      return overlappingIds;
+    }
+
+    function addTask() {
+      const title = document.getElementById("task-title").value.trim();
+      const start = document.getElementById("task-start").value;
+      const end = document.getElementById("task-end").value;
+      if (!title || !start || !end) return;
+      if (toMinutes(end) <= toMinutes(start)) {
+        showAlert("overlap-alert", "End time must be after start time.", true);
+        return;
+      }
+      state.tasks.push({ id: Date.now(), title, start, end, done: false });
+      state.tasks.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+      document.getElementById("task-title").value = "";
+      saveState();
+      renderTasks();
+    }
+
+    function toggleTask(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (t) t.done = !t.done;
+      saveState();
+      renderTasks();
+    }
+
+    function deleteTask(id) {
+      state.tasks = state.tasks.filter(x => x.id !== id);
+      saveState();
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const list = document.getElementById("task-list");
+      const overlaps = findOverlaps(state.tasks);
+      document.getElementById("task-count").textContent = `${state.tasks.length} blocks`;
+
+      if (overlaps.size > 0) {
+        showAlert("overlap-alert", "Overlap detected: some time blocks conflict. Adjust start/end times.", false);
+      } else {
+        hideAlert("overlap-alert");
+      }
+
+      if (!state.tasks.length) {
+        list.innerHTML = `<div class="item-sub">No time blocks scheduled yet.</div>`;
+        return;
+      }
+
+      list.innerHTML = state.tasks.map(t => `
+        <div class="item ${t.done ? "done" : ""} ${overlaps.has(t.id) ? "overlap" : ""}">
+          <div class="item-main" onclick="toggleTask(${t.id})">
+            <div class="item-title">${escapeHtml(t.title)} ${overlaps.has(t.id) ? '<span class="badge">Overlap</span>' : ''}</div>
+            <div class="item-sub">${t.start} – ${t.end}</div>
+          </div>
+          <button class="btn-outline btn-sm" onclick="deleteTask(${t.id})">✕</button>
+        </div>
+      `).join("");
+    }
+
+    function computeStreak(dates) {
+      if (!dates || !dates.length) return 0;
+      const set = new Set(dates);
+      let streak = 0;
+      const d = new Date();
+      if (!set.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 1);
+      while (set.has(d.toISOString().slice(0, 10))) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+      }
+      return streak;
+    }
+
+    function getMilestoneBadge(streak) {
+      let highest = null;
+      for (const m of MILESTONES) {
+        if (streak >= m) highest = m;
+      }
+      return highest ? `<span class="badge milestone">${highest}D</span>` : "";
+    }
+
+    function addHabit() {
+      const name = document.getElementById("habit-name").value.trim();
+      if (!name) return;
+      state.habits.push({ id: Date.now(), name, dates: [] });
+      document.getElementById("habit-name").value = "";
+      saveState();
+      renderHabits();
+    }
+
+    function toggleHabitToday(id) {
+      const h = state.habits.find(x => x.id === id);
+      if (!h) return;
+      const tk = todayKey();
+      const idx = h.dates.indexOf(tk);
+      if (idx >= 0) h.dates.splice(idx, 1);
+      else h.dates.push(tk);
+      saveState();
+      renderHabits();
+    }
+
+    function deleteHabit(id) {
+      state.habits = state.habits.filter(x => x.id !== id);
+      saveState();
+      renderHabits();
+    }
+
+    function renderHabits() {
+      const list = document.getElementById("habit-list");
+      const tk = todayKey();
+      if (!state.habits.length) {
+        list.innerHTML = `<div class="item-sub">No habits added yet.</div>`;
+        return;
+      }
+      list.innerHTML = state.habits.map(h => {
+        const done = h.dates.includes(tk);
+        const streak = computeStreak(h.dates);
+        return `
+          <div class="item ${done ? "done" : ""}">
+            <div class="item-main" onclick="toggleHabitToday(${h.id})">
+              <div class="item-title">${escapeHtml(h.name)} ${getMilestoneBadge(streak)}</div>
+              <div class="item-sub">Streak: ${streak} day${streak === 1 ? "" : "s"} · ${done ? "Done today" : "Tap to complete"}</div>
+            </div>
+            <button class="btn-outline btn-sm" onclick="deleteHabit(${h.id})">✕</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function saveBudgetConfig() {
+      const lim = Number(document.getElementById("budget-limit-input").value);
+      const pct = Number(document.getElementById("budget-warn-pct").value);
+      if (lim > 0) state.budget.limit = lim;
+      if (pct >= 10 && pct <= 100) state.budget.warnPct = pct;
+      saveState();
+      renderBudget();
+    }
+
+    function addExpense() {
+      const note = document.getElementById("exp-note").value.trim();
+      const amount = Number(document.getElementById("exp-amount").value);
+      const method = document.getElementById("exp-method").value;
+      if (!note || !amount || amount <= 0) return;
+      state.budget.expenses.unshift({ id: Date.now(), note, amount, method, date: todayKey() });
+      document.getElementById("exp-note").value = "";
+      document.getElementById("exp-amount").value = "";
+      saveState();
+      renderBudget();
+    }
+
+    function deleteExpense(id) {
+      state.budget.expenses = state.budget.expenses.filter(x => x.id !== id);
+      saveState();
+      renderBudget();
+    }
+
+    function renderBudget() {
+      const { limit, warnPct, expenses } = state.budget;
+      document.getElementById("budget-limit-input").value = limit;
+      document.getElementById("budget-warn-pct").value = warnPct;
+
+      const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+      const pct = limit > 0 ? Math.round((total / limit) * 100) : 0;
+      document.getElementById("budget-summary").textContent = `₹${total} / ₹${limit} (${pct}%)`;
+      document.getElementById("budget-bar").style.width = Math.min(100, pct) + "%";
+
+      if (pct >= 100) {
+        showAlert("budget-alert", `Budget exceeded: ₹${total} spent (limit ₹${limit}).`, true);
+      } else if (pct >= warnPct) {
+        showAlert("budget-alert", `Approaching budget limit: ${pct}% used (alert threshold ${warnPct}%).`, false);
+      } else {
+        hideAlert("budget-alert");
+      }
+
+      const byMethod = {};
+      expenses.forEach(e => { byMethod[e.method] = (byMethod[e.method] || 0) + e.amount; });
+      document.getElementById("method-totals").textContent = Object.entries(byMethod)
+        .map(([k, v]) => `${k}: ₹${v}`).join(" · ");
+
+      const list = document.getElementById("expense-list");
+      if (!expenses.length) {
+        list.innerHTML = `<div class="item-sub">No expenses logged yet.</div>`;
+        return;
+      }
+      list.innerHTML = expenses.map(e => `
+        <div class="item">
+          <div class="item-main">
+            <div class="item-title">${escapeHtml(e.note)} <span class="badge">${escapeHtml(e.method)}</span></div>
+            <div class="item-sub">${e.date}</div>
+          </div>
+          <div style="font-weight:600;margin-right:8px;">₹${e.amount}</div>
+          <button class="btn-outline btn-sm" onclick="deleteExpense(${e.id})">✕</button>
+        </div>
+      `).join("");
+    }
+
+    function onDetoxSlide(mins) {
+      if (detoxInterval) return;
+      detoxTotal = Number(mins) * 60;
+      detoxSeconds = detoxTotal;
+      updateDetoxUI();
+    }
+
+    function updateDetoxUI() {
+      const m = String(Math.floor(detoxSeconds / 60)).padStart(2, "0");
+      const s = String(detoxSeconds % 60).padStart(2, "0");
+      document.getElementById("detox-display").textContent = `${m}:${s}`;
+      const circ = 578.05;
+      const offset = circ * (1 - detoxSeconds / detoxTotal);
+      document.getElementById("detox-ring").style.strokeDashoffset = offset;
+    }
+
+    async function toggleDetox() {
+      const btn = document.getElementById("detox-toggle-btn");
+      if (detoxInterval) {
+        clearInterval(detoxInterval);
+        detoxInterval = null;
+        btn.textContent = "Resume Focus";
+        document.getElementById("detox-status").textContent = "Paused";
+        if (state.screenPinning && Detox) { try { await Detox.stopPinning(); } catch {} }
+        return;
+      }
+      btn.textContent = "Pause";
+      document.getElementById("detox-status").textContent = "Focusing";
+      if (state.screenPinning && Detox) { try { await Detox.startPinning(); } catch {} }
+      detoxInterval = setInterval(async () => {
+        detoxSeconds--;
+        updateDetoxUI();
+        if (detoxSeconds <= 0) {
+          clearInterval(detoxInterval);
+          detoxInterval = null;
+          btn.textContent = "Start Focus";
+          document.getElementById("detox-status").textContent = "Complete";
+          if (state.screenPinning && Detox) { try { await Detox.stopPinning(); } catch {} }
+        }
+      }, 1000);
+    }
+
+    async function resetDetox() {
+      clearInterval(detoxInterval);
+      detoxInterval = null;
+      detoxTotal = Number(document.getElementById("detox-slider").value) * 60;
+      detoxSeconds = detoxTotal;
+      document.getElementById("detox-toggle-btn").textContent = "Start Focus";
+      document.getElementById("detox-status").textContent = "Ready";
+      if (Detox) { try { await Detox.stopPinning(); } catch {} }
+      updateDetoxUI();
+    }
+
+    function toggleScreenPinning(checked) {
+      state.screenPinning = checked;
+      saveState();
+    }
+
+    function showLockScreen() {
+      pinBuffer = "";
+      updatePinDots();
+      document.getElementById("lock-screen").classList.add("active");
+      triggerBiometric();
+    }
+
+    function pinPress(digit) {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += digit;
+      updatePinDots();
+      if (pinBuffer.length === 4) {
+        if (pinBuffer === state.pin) {
+          document.getElementById("lock-screen").classList.remove("active");
+        } else {
+          document.getElementById("lock-msg").textContent = "Incorrect PIN";
+          pinBuffer = "";
+          setTimeout(updatePinDots, 180);
+        }
+      }
+    }
+
+    function pinBackspace() {
+      pinBuffer = pinBuffer.slice(0, -1);
+      updatePinDots();
+    }
+
+    function updatePinDots() {
+      document.querySelectorAll("#pin-dots .pin-dot").forEach((d, i) => {
+        d.classList.toggle("filled", i < pinBuffer.length);
+      });
+    }
+
+    async function triggerBiometric() {
+      if (!Biometric) return;
+      try {
+        const res = await Biometric.authenticate({
+          title: "Unlock Dopahar",
+          subtitle: "Verify your fingerprint"
+        });
+        if (res && res.authenticated) {
+          document.getElementById("lock-screen").classList.remove("active");
+        }
+      } catch (err) {
+        document.getElementById("lock-msg").textContent = "Use PIN fallback";
+      }
+    }
+
+    function toggleLockEnabled(checked) {
+      state.lockEnabled = checked;
+      saveState();
+    }
+
+    function savePin() {
+      const val = document.getElementById("new-pin-input").value.trim();
+      if (!/^\d{4}$/.test(val)) return alert("Enter a 4-digit numeric PIN.");
+      state.pin = val;
+      document.getElementById("new-pin-input").value = "";
+      saveState();
+      alert("PIN updated.");
+    }
+
+    function exportBackup() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `dopahar-backup-${todayKey()}.json`;
+      a.click();
+    }
+
+    function importBackup(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          state = { ...structuredClone(defaultState), ...imported };
+          saveState();
+          initUI();
+          alert("Backup restored.");
+        } catch {
+          alert("Invalid JSON backup file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function openSupportModal() { document.getElementById("support-modal").classList.add("open"); }
+    function closeSupportModal() { document.getElementById("support-modal").classList.remove("open"); }
+
+    async function checkForUpdates() {
+      const el = document.getElementById("ota-status");
+      el.textContent = "Checking GitHub Releases...";
+      try {
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+        if (!res.ok) throw new Error("No release found");
+        const data = await res.json();
+        const latest = (data.tag_name || "").replace(/^v/, "");
+        if (latest && latest !== APP_VERSION) {
+          el.innerHTML = `Update available: v${escapeHtml(latest)} · <a href="${data.html_url}" target="_blank" style="color:var(--text);">Download APK</a>`;
+        } else {
+          el.textContent = `You are on the latest version (v${APP_VERSION}).`;
+        }
+      } catch {
+        el.textContent = "Offline or no GitHub release published yet.";
+      }
+    }
+
+    function showAlert(id, msg, danger) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.toggle("danger", !!danger);
+      el.classList.add("show");
+    }
+    function hideAlert(id) { document.getElementById(id).classList.remove("show"); }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+
+    function initUI() {
+      document.getElementById("today-label").textContent = new Date().toLocaleDateString(undefined, {
+        weekday: "short", month: "short", day: "numeric"
+      });
+      setTheme(state.theme);
+      document.getElementById("lock-enabled-toggle").checked = !!state.lockEnabled;
+      document.getElementById("screen-pinning-toggle").checked = !!state.screenPinning;
+      renderTasks();
+      renderHabits();
+      renderBudget();
+      updateDetoxUI();
+    }
+
+    initUI();
+    if (state.lockEnabled) showLockScreen();
+  </script>
+</body>
+</html>
