@@ -1,0 +1,199 @@
+name: Build Dopahar APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Prepare web assets & Capacitor
+        run: |
+          mkdir -p www
+          if [ -f index.html ] && [ ! -f www/index.html ]; then cp index.html www/index.html; fi
+          if [ ! -f package.json ]; then npm init -y; fi
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/status-bar
+          if [ ! -d android ]; then npx cap add android; fi
+          npx cap sync android
+
+      - name: Inject BiometricPlugin, DetoxPlugin, and MainActivity
+        run: |
+          PKG_DIR="android/app/src/main/java/com/dayflow/app"
+          mkdir -p "$PKG_DIR"
+
+          cat << 'EOF' > "$PKG_DIR/BiometricPlugin.java"
+          package com.dayflow.app;
+
+          import androidx.annotation.NonNull;
+          import androidx.biometric.BiometricManager;
+          import androidx.biometric.BiometricPrompt;
+          import androidx.core.content.ContextCompat;
+          import androidx.fragment.app.FragmentActivity;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "Biometric")
+          public class BiometricPlugin extends Plugin {
+              @PluginMethod
+              public void authenticate(PluginCall call) {
+                  FragmentActivity activity = getActivity();
+                  if (activity == null) {
+                      call.reject("Activity unavailable");
+                      return;
+                  }
+
+                  BiometricManager bm = BiometricManager.from(activity);
+                  int canAuth = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+                  if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+                      call.reject("Biometric unavailable");
+                      return;
+                  }
+
+                  String title = call.getString("title", "Unlock Dopahar");
+                  String subtitle = call.getString("subtitle", "Verify your identity");
+
+                  activity.runOnUiThread(() -> {
+                      BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                          .setTitle(title)
+                          .setSubtitle(subtitle)
+                          .setNegativeButtonText("Use PIN")
+                          .build();
+
+                      BiometricPrompt prompt = new BiometricPrompt(
+                          activity,
+                          ContextCompat.getMainExecutor(activity),
+                          new BiometricPrompt.AuthenticationCallback() {
+                              @Override
+                              public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                                  JSObject ret = new JSObject();
+                                  ret.put("authenticated", true);
+                                  call.resolve(ret);
+                              }
+
+                              @Override
+                              public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                                  call.reject(errString.toString());
+                              }
+                          }
+                      );
+                      prompt.authenticate(promptInfo);
+                  });
+              }
+          }
+          EOF
+
+          cat << 'EOF' > "$PKG_DIR/DetoxPlugin.java"
+          package com.dayflow.app;
+
+          import android.app.Activity;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "Detox")
+          public class DetoxPlugin extends Plugin {
+              @PluginMethod
+              public void startPinning(PluginCall call) {
+                  Activity activity = getActivity();
+                  if (activity != null) {
+                      activity.runOnUiThread(() -> {
+                          try { activity.startLockTask(); call.resolve(); }
+                          catch (Exception e) { call.reject(e.getMessage()); }
+                      });
+                  } else {
+                      call.reject("Activity unavailable");
+                  }
+              }
+
+              @PluginMethod
+              public void stopPinning(PluginCall call) {
+                  Activity activity = getActivity();
+                  if (activity != null) {
+                      activity.runOnUiThread(() -> {
+                          try { activity.stopLockTask(); call.resolve(); }
+                          catch (Exception e) { call.reject(e.getMessage()); }
+                      });
+                  } else {
+                      call.reject("Activity unavailable");
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > "$PKG_DIR/MainActivity.java"
+          package com.dayflow.app;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(BiometricPlugin.class);
+                  registerPlugin(DetoxPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          EOF
+
+      - name: Update Android Display Name, Version Code & Biometric Dependency
+        run: |
+          STRINGS="android/app/src/main/res/values/strings.xml"
+          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">Dopahar<\/string>/' "$STRINGS"
+          sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">Dopahar<\/string>/' "$STRINGS"
+
+          GRADLE="android/app/build.gradle"
+          sed -i 's/versionCode [0-9]\+/versionCode 5/' "$GRADLE"
+          sed -i 's/versionName ".*"/versionName "1.4.0"/' "$GRADLE"
+          if ! grep -q "androidx.biometric:biometric" "$GRADLE"; then
+            sed -i '/dependencies {/a \    implementation "androidx.biometric:biometric:1.1.0"' "$GRADLE"
+          fi
+
+      - name: Build APK (Signed Release if Keystore Secrets Exist, Else Debug)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+            ./gradlew assembleRelease \
+              -Pandroid.injected.signing.store.file="$(pwd)/app/release.keystore" \
+              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+            cp app/build/outputs/apk/release/app-release.apk ../Dopahar-v1.4.0.apk
+          else
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk ../Dopahar-v1.4.0-debug.apk
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopahar-v1.4.0-APK
+          path: Dopahar-v1.4.0*.apk
