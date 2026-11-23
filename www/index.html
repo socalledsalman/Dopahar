@@ -601,8 +601,6 @@
         Minimal local-first planner for time blocks, habits, budgets, and focus detox. All data stays on your device.
       </p>
 
-      <!-- Support links (UPI & Ko-fi) can be added here after testing -->
-
       <div style="border-top:1px solid var(--border);padding-top:12px;">
         <button class="btn-outline" style="width:100%;" onclick="checkForUpdates()">Check for Updates</button>
         <div id="ota-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center;"></div>
@@ -620,13 +618,13 @@
 
   <script>
     const APP_VERSION = "1.4.0";
-    const GITHUB_REPO = "YOUR_USERNAME/dopahar";
+    const GITHUB_REPO = "socalledsalman/Dopahar";
     const STORAGE_KEY = "dayflow_data_v1";
 
     const Cap = window.Capacitor;
-    const Biometric = Cap && Cap.registerPlugin ? Cap.registerPlugin('Biometric') : null;
-    const Detox = Cap && Cap.registerPlugin ? Cap.registerPlugin('Detox') : null;
-    const StatusBar = Cap && Cap.Plugins ? Cap.Plugins.StatusBar : null;
+    const Biometric = (Cap && Cap.Plugins && Cap.Plugins.Biometric) || (Cap && Cap.registerPlugin ? Cap.registerPlugin('Biometric') : null);
+    const Detox = (Cap && Cap.Plugins && Cap.Plugins.Detox) || (Cap && Cap.registerPlugin ? Cap.registerPlugin('Detox') : null);
+    const StatusBar = (Cap && Cap.Plugins && Cap.Plugins.StatusBar) || null;
 
     const MILESTONES = [3, 7, 14, 30, 60, 100];
 
