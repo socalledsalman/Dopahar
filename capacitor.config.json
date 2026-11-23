@@ -1,0 +1,12 @@
+{
+  "appId": "com.dayflow.app",
+  "appName": "Dopahar",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchAutoHide": true
+    }
+  }
+}
