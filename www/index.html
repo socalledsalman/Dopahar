@@ -357,9 +357,25 @@
     background: var(--card-2); border-left: 3px solid var(--b-color, var(--accent));
   }
 
-  /* Budget Progress & Category Bars */
+  /* Budget Progress & Category Bars + Threshold Zones */
   .progress-track { width: 100%; height: 8px; border-radius: 999px; background: var(--card-2); overflow: hidden; margin: 8px 0; }
-  .progress-fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }
+  .progress-fill { height: 100%; border-radius: 999px; transition: width 0.25s ease, background-color 0.25s ease; }
+  .budget-zone-safe { --b-color: #10b981; --b-soft: rgba(16, 185, 129, 0.14); }
+  .budget-zone-warn { --b-color: #eab308; --b-soft: rgba(234, 179, 8, 0.16); }
+  .budget-zone-over { --b-color: #ef4444; --b-soft: rgba(239, 68, 68, 0.16); }
+  .budget-section-tinted {
+    border-color: var(--b-color, var(--border));
+    background: linear-gradient(180deg, var(--b-soft, transparent) 0%, var(--card) 58px);
+    transition: border-color 0.25s ease, background 0.25s ease;
+  }
+  .budget-zone-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700;
+    background: var(--b-soft); color: var(--b-color);
+  }
+  .header-date-trigger { cursor: pointer; border-radius: 8px; padding: 2px 6px; margin: -2px -6px; transition: background 0.15s ease; }
+  .header-date-trigger:active { background: var(--card-2); }
   .cat-bar-row { margin-bottom: 10px; }
   .cat-bar-row:last-child { margin-bottom: 0; }
   .cat-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -503,11 +519,11 @@
 <div class="app-shell">
   <!-- Header -->
   <header class="topbar">
-    <div class="brand">
+    <div class="brand header-date-trigger" id="btnHeaderCalendar" title="Jump to Date">
       <svg class="brand-logo" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19h18"/><path d="M8.5 19a5.5 5.5 0 0 1 11 0"/><line x1="14" y1="5.5" x2="14" y2="9"/><line x1="6.8" y1="10.2" x2="9.1" y2="12.5"/><line x1="21.2" y1="10.2" x2="18.9" y2="12.5"/></svg>
       <div>
         <div class="brand-title" id="headerTitle">Today</div>
-        <div class="brand-sub" id="headerSub">Dopahar v1.4</div>
+        <div class="brand-sub" id="headerSub">Dopahar v1.4.1</div>
       </div>
     </div>
     <div class="topbar-actions">
@@ -716,7 +732,7 @@
       <button class="icon-btn" id="btnCloseSettings" aria-label="Back"></button>
       <div>
         <div class="brand-title">Settings & Sync</div>
-        <div class="brand-sub">Dopahar v1.4</div>
+        <div class="brand-sub">Dopahar v1.4.1</div>
       </div>
     </div>
   </header>
@@ -798,7 +814,7 @@
       <div class="row-between" style="padding-top:8px;border-top:1px solid var(--border);">
         <div>
           <div style="font-weight:600;font-size:13px;">App Updates</div>
-          <div class="muted" id="updateStatusText">Current version: v1.4</div>
+          <div class="muted" id="updateStatusText">Current version: v1.4.1</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="checkForUpdates()">Check Now</button>
       </div>
@@ -855,9 +871,9 @@
 
 <script>
 (() => {
-  const APP_VERSION = "v1.4";
+  const APP_VERSION = "v1.4.1";
   const KOFI_URL = "https://ko-fi.com/socalledsalman";
-  const UPI_ID = "yourname@upi";
+  const UPI_ID = "9685949596@superyes";
   const GITHUB_REPO = "socalledsalman/Dopahar";
   const STORAGE_KEY = "dayflow_data_v1";
   const LEGACY_KEYS = ["dayflow_data", "dayflow_v1", "dayflow_state", "dayflow"];
@@ -988,6 +1004,7 @@
 
   let state = loadState();
   let currentPage = 0;
+  let activeDate = todayISO();
   let habitDaysCount = 7;
   let habitEndDate = todayISO();
   let freezeMode = false;
@@ -1234,7 +1251,10 @@
   function setActivePageUI(idx) {
     currentPage = idx;
     document.getElementById("headerTitle").textContent = PAGE_TITLES[idx] || "Dopahar";
-    document.getElementById("headerSub").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const [ay, am, ad] = activeDate.split("-").map(Number);
+    const adObj = new Date(ay, am - 1, ad);
+    const isToday = activeDate === todayISO();
+    document.getElementById("headerSub").textContent = (isToday ? "Today · " : "") + adObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     navItems.forEach((btn, i) => btn.classList.toggle("active", i === idx));
   }
 
@@ -1263,6 +1283,46 @@
       el.addEventListener("touchmove", e => e.stopPropagation(), { passive: true });
     });
   }
+
+
+  function openCalendarDateModal() {
+    const prevD = offsetISO(activeDate, -1);
+    const nextD = offsetISO(activeDate, 1);
+    const tISO = todayISO();
+    openModal(`
+      <div class="row-between" style="margin-bottom:12px;">
+        <div>
+          <strong>Jump to Date</strong>
+          <div class="muted mono">${esc(activeDate)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal()">${svg("x","ic-sm")}</button>
+      </div>
+      <div class="row" style="margin-bottom:12px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="jumpToDate('${prevD}')">${svg("chevL","ic-sm")} Prev Day</button>
+        <button class="btn btn-soft btn-sm" onclick="jumpToDate('${tISO}')">Today</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="jumpToDate('${nextD}')">Next Day ${svg("chevR","ic-sm")}</button>
+      </div>
+      <div class="field">
+        <label>Pick Any Date</label>
+        <input type="date" id="calendarJumpPicker" class="input mono" value="${esc(activeDate)}" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="jumpToDate(document.getElementById('calendarJumpPicker').value || '${tISO}')">Go to Date</button>
+    `);
+  }
+
+  window.jumpToDate = function(isoStr) {
+    if (!isoStr) return;
+    activeDate = isoStr;
+    scheduleDate = isoStr;
+    const sp = document.getElementById("scheduleDatePicker");
+    if (sp) sp.value = isoStr;
+    setActivePageUI(currentPage);
+    renderAll();
+    closeModal();
+    showToast(isoStr === todayISO() ? "Back to Today" : `Viewing ${isoStr}`);
+  };
+
+  document.getElementById("btnHeaderCalendar").addEventListener("click", openCalendarDateModal);
 
   // Settings Drawer
   function openSettings() { document.getElementById("settingsDrawer").classList.add("open"); renderSettings(); }
@@ -2016,13 +2076,18 @@
     const totalExp = monthTx.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
     const totalInc = monthTx.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
     const limit = Number(state.monthlyBudget || 0);
-    const pct = limit > 0 ? Math.min(100, Math.round((totalExp / limit) * 100)) : 0;
-    const barColor = pct >= 90 ? "#ef4444" : (pct >= 70 ? "#f59e0b" : "#10b981");
+    const rawPct = limit > 0 ? Math.round((totalExp / limit) * 100) : 0;
+    const pct = Math.min(100, rawPct);
+    const zoneClass = rawPct <= 80 ? "budget-zone-safe" : (rawPct <= 95 ? "budget-zone-warn" : "budget-zone-over");
+    const zoneLabel = rawPct <= 80 ? "Safe (≤80%)" : (rawPct <= 95 ? "Caution (80–95%)" : "Over / Limit (>95%)");
+    const barColor = rawPct <= 80 ? "#10b981" : (rawPct <= 95 ? "#eab308" : "#ef4444");
     const rem = limit - totalExp;
 
-    document.getElementById("budgetOverviewCard").innerHTML = `
+    const overviewCard = document.getElementById("budgetOverviewCard");
+    overviewCard.className = `card budget-section-tinted ${zoneClass}`;
+    overviewCard.innerHTML = `
       <div class="row-between">
-        <div><div class="muted">Spent in ${label}</div><div class="tabular" style="font-size:22px;font-weight:700;margin-top:2px;">${state.currency}${totalExp.toLocaleString()}</div></div>
+        <div><div class="row" style="gap:6px;"><span class="muted">Spent in ${label}</span><span class="budget-zone-pill">${esc(zoneLabel)}</span></div><div class="tabular" style="font-size:22px;font-weight:700;margin-top:4px;color:var(--b-color);">${state.currency}${totalExp.toLocaleString()}</div></div>
         <div style="text-align:right;"><div class="muted">Income</div><div class="tabular" style="font-size:15px;font-weight:700;color:#22c55e;">+${state.currency}${totalInc.toLocaleString()}</div></div>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
@@ -2035,6 +2100,7 @@
     monthTx.filter(t => t.type === "expense").forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + Number(t.amount || 0); });
     const catEntries = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
     const catBox = document.getElementById("categoryBreakdownCard");
+    catBox.className = `card budget-section-tinted ${zoneClass}`;
     catBox.innerHTML = !catEntries.length ? `<div class="empty-state">No expenses in ${label}.</div>` : catEntries.map(([cat, amt]) => {
       const meta = EXPENSE_CATEGORIES[cat] || EXPENSE_CATEGORIES.Other;
       const p = totalExp > 0 ? Math.round((amt / totalExp) * 100) : 0;
