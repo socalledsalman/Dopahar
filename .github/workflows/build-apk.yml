@@ -306,8 +306,8 @@ jobs:
           # 4. Version bump (4 / v1.4) + Biometric & Kotlin BOM dependencies
           g = "android/app/build.gradle"
           gs = open(g).read()
-          gs = re.sub(r'versionCode\s+\d+', 'versionCode 4', gs)
-          gs = re.sub(r'versionName\s+"[^"]*"', 'versionName "1.4"', gs)
+          gs = re.sub(r'versionCode\s+\d+', 'versionCode 5', gs)
+          gs = re.sub(r'versionName\s+"[^"]*"', 'versionName "1.4.1"', gs)
           if "androidx.biometric:biometric" not in gs:
               gs = gs.replace("dependencies {", "dependencies {\n    implementation 'androidx.biometric:biometric:1.1.0'", 1)
           if "kotlin-bom" not in gs:
@@ -331,14 +331,14 @@ jobs:
               -Pandroid.injected.signing.store.password="$KEYSTORE_PASS" \
               -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
               -Pandroid.injected.signing.key.password="$KEY_PASS"
-            cp app/build/outputs/apk/release/app-release.apk ../Dopahar-v1.4.apk
+            cp app/build/outputs/apk/release/app-release.apk ../Dopahar-v1.4.1.apk
           else
             ./gradlew assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk ../Dopahar-v1.4.apk
+            cp app/build/outputs/apk/debug/app-debug.apk ../Dopahar-v1.4.1.apk
           fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Dopahar-v1.4-APK
-          path: Dopahar-v1.4.apk
+          name: Dopahar-v1.4.1-APK
+          path: Dopahar-v1.4.1.apk
